@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#FFD700">
+    <title>¡Hijole! Chipre • Master Panel de Grabación (Versión Final)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0A0A0A;
+            --surface: #141414;
+            --yellow: #FFD700;
+            --yellow-glow: rgba(255, 215, 0, 0.4);
+            --red: #E60000;
+            --red-glow: rgba(230, 0, 0, 0.4);
+            --text: #FFFFFF;
+            --text-dim: #A0A0A0;
+            --border: rgba(255, 215, 0, 0.15);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Space Grotesk', sans-serif; -webkit-tap-highlight-color: transparent; }
+        html, body { background-color: var(--bg); color: var(--text); overflow-x: hidden; min-height: 100vh; display: flex; flex-direction: column; position: relative; }
+
+        .live-bg {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; overflow: hidden; pointer-events: none; 
+            background: radial-gradient(circle at 50% 20%, #220808 0%, #0A0A0A 85%);
+        }
+        .bubble {
+            position: absolute; bottom: -60px; background: radial-gradient(circle at 35% 35%, var(--yellow), var(--red));
+            border-radius: 50%; opacity: 0.25; filter: blur(4px);
+            animation: floatUp linear infinite;
+        }
+        @keyframes floatUp {
+            0% { transform: translateY(0) translateX(0) scale(1); opacity: 0; }
+            20% { opacity: 0.35; }
+            80% { opacity: 0.35; }
+            100% { transform: translateY(-110vh) translateX(50px) scale(1.2); opacity: 0; }
+        }
+
+        #preloader {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background: #050505; z-index: 99999;
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.8s;
+            padding: 20px; text-align: center;
+        }
+
+        .top-scan-progress-container {
+            position: absolute; top: 0; left: 0; width: 100%; height: 5px;
+            background: rgba(255,255,255,0.05); z-index: 10;
+        }
+        .top-scan-progress-bar {
+            width: 0%; height: 100%; background: linear-gradient(90deg, var(--red), var(--yellow));
+            box-shadow: 0 0 15px var(--yellow); transition: width 0.08s linear;
+        }
+
+        .preloader-title {
+            font-size: clamp(1.8rem, 4vw, 2.6rem);
+            color: var(--yellow);
+            text-shadow: 0 0 30px var(--yellow-glow);
+            font-weight: 700; margin-bottom: 8px;
+        }
+        .preloader-sub { font-size: 0.75rem; letter-spacing: 4px; text-transform: uppercase; color: var(--red); margin-bottom: 35px; font-weight: 700; }
+        
+        .biometric-scanner-box {
+            display: flex; flex-direction: column; align-items: center; gap: 18px; cursor: pointer;
+            position: relative; padding: 15px; user-select: none; width: 100%; max-width: 320px;
+        }
+        .fingerprint-container {
+            width: 110px; height: 110px; border-radius: 50%;
+            background: rgba(255, 215, 0, 0.05); border: 2px dashed var(--yellow);
+            display: flex; align-items: center; justify-content: center;
+            position: relative; transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 0 30px rgba(255,215,0,0.15);
+        }
+        .fingerprint-container svg { width: 55px; height: 55px; fill: var(--yellow); opacity: 0.8; transition: all 0.4s; }
+        .fingerprint-container.scanning {
+            border-style: solid; border-color: var(--red);
+            box-shadow: 0 0 50px var(--red-glow), inset 0 0 25px var(--red-glow);
+            transform: scale(1.06);
+        }
+        .fingerprint-container.scanning svg { fill: var(--red); opacity: 1; filter: drop-shadow(0 0 10px var(--red)); }
+        
+        .scanner-instruction { font-size: 0.85rem; color: var(--text-dim); letter-spacing: 1px; font-weight: 500; }
+        .scanner-instruction span { color: var(--yellow); font-weight: 700; text-shadow: 0 0 10px var(--yellow-glow); }
+
+        .unlock-glow-fx {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(circle, rgba(230,0,0,0.25) 0%, rgba(255,215,0,0.15) 50%, transparent 80%);
+            opacity: 0; pointer-events: none; transition: opacity 0.6s ease;
+        }
+
+        .loaded { opacity: 0; visibility: hidden; pointer-events: none; }
+
+        .wrapper {
+            width: 100%; max-width: 950px; margin: 0 auto;
+            padding: 20px; display: flex; flex-direction: column; gap: 20px; flex: 1;
+        }
+
+        .header {
+            background: rgba(20, 20, 20, 0.85); backdrop-filter: blur(12px);
+            border: 1px solid var(--border); border-radius: 18px; padding: 22px;
+            display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 14px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+        }
+        .brand { font-size: 0.75rem; font-weight: 800; letter-spacing: 2.5px; text-transform: uppercase; color: var(--yellow); text-shadow: 0 0 10px var(--yellow-glow); }
+        .client-info h1 { font-size: 1.45rem; color: #fff; margin-top: 3px; font-weight: 700; }
+        .client-info p { font-size: 0.85rem; color: var(--text-dim); font-weight: 500; }
+        .whatsapp-btn {
+            background: rgba(255, 215, 0, 0.1); border: 1px solid var(--yellow); color: var(--yellow);
+            padding: 10px 20px; border-radius: 25px; font-size: 0.8rem; font-weight: 700; text-decoration: none;
+            transition: all 0.2s; box-shadow: 0 0 15px rgba(255,215,0,0.15); display: inline-flex; align-items: center; gap: 6px;
+        }
+        .whatsapp-btn:hover { background: var(--yellow); color: #000; box-shadow: 0 0 20px var(--yellow-glow); }
+
+        .studio {
+            background: rgba(20, 20, 20, 0.9); border: 1px solid rgba(255, 215, 0, 0.3);
+            border-radius: 18px; padding: 24px; display: grid; gap: 16px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
+        }
+        .studio-top { display: flex; justify-content: space-between; align-items: center; }
+        .studio-title { font-size: 1rem; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 8px; }
+        .studio-title span { color: var(--yellow); }
+        .timer { font-size: 1.9rem; font-weight: 800; color: var(--yellow); font-variant-numeric: tabular-nums; text-shadow: 0 0 12px rgba(255,215,0,0.35); }
+        
+        .prompter-screen {
+            background: #080808; border: 2px solid var(--yellow); border-radius: 14px;
+            padding: 30px 20px; min-height: 150px; display: flex; align-items: center; justify-content: center;
+            text-align: center; font-size: clamp(1.25rem, 3.5vw, 1.7rem); font-weight: 700; color: #fff;
+            line-height: 1.5; position: relative; box-shadow: inset 0 0 25px rgba(255, 215, 0, 0.08);
+        }
+        .live-tag {
+            position: absolute; top: 12px; right: 14px; font-size: 0.65rem; letter-spacing: 1px;
+            color: #000; background: var(--yellow); padding: 4px 10px; border-radius: 6px; font-weight: 800;
+        }
+
+        .controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn-main {
+            background: linear-gradient(135deg, var(--red), #b30000); color: #fff; border: none; padding: 12px 26px;
+            font-weight: 700; border-radius: 12px; cursor: pointer; font-size: 0.9rem;
+            box-shadow: 0 4px 15px var(--red-glow); transition: all 0.2s;
+        }
+        .btn-main:active { transform: scale(0.96); }
+        .btn-sec {
+            background: #1c1408; color: var(--yellow); border: 1px solid rgba(255,215,0,0.3);
+            padding: 12px 20px; font-weight: 600; border-radius: 12px; cursor: pointer; font-size: 0.9rem;
+        }
+        .btn-sec:active { transform: scale(0.96); }
+
+        .script-card {
+            background: rgba(20, 20, 20, 0.9); border: 1px solid var(--border);
+            border-radius: 18px; padding: 24px; display: grid; gap: 18px;
+        }
+        .card-title { font-size: 1.05rem; font-weight: 700; color: #fff; display: flex; justify-content: space-between; align-items: center; }
+        
+        .scene-list { display: grid; gap: 14px; }
+        .scene-row {
+            background: #0d0d0d; border: 1px solid var(--border); border-radius: 12px;
+            padding: 18px; display: flex; flex-direction: column; gap: 8px; transition: border-color 0.2s;
+        }
+        .scene-row:hover { border-color: rgba(255,215,0,0.4); }
+        .scene-header { display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; }
+        .scene-name { color: var(--yellow); font-weight: 700; text-transform: uppercase; letter-spacing: 1px; }
+        .scene-time { color: var(--red); font-weight: 700; background: rgba(230,0,0,0.15); padding: 3px 9px; border-radius: 6px; }
+        .scene-text { font-size: 0.95rem; color: var(--text-dim); line-height: 1.55; font-weight: 400; }
+        .scene-text b { color: #fff; font-weight: 600; }
+
+        .clean-script {
+            background: #080808; border: 1px dashed rgba(255, 215, 0, 0.35);
+            border-radius: 14px; padding: 22px; font-size: 1.05rem; color: #fff; line-height: 1.65; font-weight: 500;
+        }
+
+        .footer { text-align: center; padding: 10px 0 25px; font-size: 0.75rem; color: var(--text-dim); letter-spacing: 2.5px; text-transform: uppercase; font-weight: 600; }
+
+        @media(max-width: 480px) {
+            .wrapper { padding: 12px; gap: 12px; }
+            .header, .studio, .script-card { padding: 16px; }
+            .prompter-screen { min-height: 130px; font-size: 1.2rem; padding: 20px 14px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="live-bg" id="bubbleContainer"></div>
+
+    <div id="preloader">
+        <div class="top-scan-progress-container">
+            <div class="top-scan-progress-bar" id="topScanProgressBar"></div>
+        </div>
+        <div class="unlock-glow-fx" id="unlockEffect"></div>
+        
+        <div style="z-index: 2; width: 100%; display: flex; flex-direction: column; align-items: center;">
+            <div class="preloader-title" id="preloaderTitle">¡Hijole! Chipre • Master</div>
+            <div class="preloader-sub">Cargando Guion Teleprompter Profesional</div>
+            
+            <div class="biometric-scanner-box" id="scannerTrigger">
+                <div class="fingerprint-container" id="fingerprintBtn">
+                    <svg viewBox="0 0 24 24"><path d="M17.81 4.47c-.08 0-.16-.02-.23-.06C15.66 3.42 13.9 3 12 3c-1.9 0-3.66.42-5.58 1.41-.15.08-.33.04-.41-.11-.08-.15-.04-.33.11-.41C8.36 2.76 10.23 2.3 12 2.3c1.93 0 3.8.44 5.82 1.48.15.08.21.26.13.41-.05.17-.18.28-.34.28zM12 5.5c-1.6 0-3.11.37-4.68 1.15-.14.07-.31.02-.38-.12-.07-.14-.02-.31.12-.38C8.71 5.92 10.32 5.5 12 5.5s3.29.42 4.94 1.25c.14.07.19.24.12.38-.07.14-.24.19-.38.12C15.11 5.87 13.6 5.5 12 5.5zm0 2.5c-1.13 0-2.23.27-3.35.82-.14.07-.31.01-.38-.13-.07-.14-.01-.31.13-.38 1.23-.61 2.44-.91 3.6-.91s2.37.3 3.6.91c.14.07.2.24.13.38-.07.14-.24.2-.38.13-1.12-.55-2.22-.82-3.35-.82zm-.5 3.5c-.83 0-1.5.67-1.5 1.5 0 .61.36 1.14.88 1.39v3.61c0 .34.28.62.62.62s.62-.28.62-.62v-3.61c.52-.25.88-.78.88-1.39 0-.83-.67-1.5-1.5-1.5z"/></svg>
+                </div>
+                <div class="scanner-instruction" id="scannerText">Mantén presionado para <span>activar el estudio</span></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="wrapper">
+        <header class="header">
+            <div class="client-info">
+                <span class="brand">¡Hijole! Chipre Studio</span>
+                <h1>Comida Mexicana & Domicilios</h1>
+                <p>Manizales & Villamaría</p>
+            </div>
+            <a href="https://wa.me/573014848031?text=¡Hola!%20Quiero%20pedir%20a%20domicilio%20en%20Hijole%20Chipre" target="_blank" class="whatsapp-btn">WhatsApp Directo ↗</a>
+        </header>
+
+        <section class="studio">
+            <div class="studio-top">
+                <div class="studio-title">🎙️ Teleprompter <span>(33s Exacto)</span></div>
+                <div class="timer" id="masterTimer">00:33</div>
+            </div>
+            <div class="prompter-screen" id="prompterText">
+                <div class="live-tag">EN VIVO</div>
+                Pulsa Iniciar para leer el guion fluido con claridad.
+            </div>
+            <div class="controls">
+                <button class="btn-main" onclick="startTeleprompter()">▶️ Iniciar</button>
+                <button class="btn-sec" onclick="pauseTeleprompter()">⏸️ Pausar</button>
+                <button class="btn-sec" onclick="resetTeleprompter()">🔄 Reiniciar</button>
+            </div>
+        </section>
+
+        <section class="script-card">
+            <div class="card-title">
+                <span>🎬 Guion Técnico por Escenas (Salomé y Amiga • 33s)</span>
+            </div>
+            
+            <div class="scene-list">
+                <div class="scene-row">
+                    <div class="scene-header">
+                        <span class="scene-name">Pieza 1 • Charla en el Sofá y Gancho</span>
+                        <span class="scene-time">00:00 - 00:05</span>
+                    </div>
+                    <div class="scene-text"><b>Acción Visual:</b> Salomé y su amiga charlando relajadas en el sofá de la sala. Suena la puerta. <br><b>Voz en Off (Salomé):</b> Descubrimos la comida rápida más pro de Manizales.</div>
+                </div>
+
+                <div class="scene-row">
+                    <div class="scene-header">
+                        <span class="scene-name">Pieza 2 • Recepción del Domicilio</span>
+                        <span class="scene-time">00:05 - 00:10</span>
+                    </div>
+                    <div class="scene-text"><b>Acción Visual:</b> Salomé abre la puerta y recibe el domicilio con actitud feliz, mientras la amiga espera ansiosa en la sala para comer. <br><b>Voz en Off (Salomé):</b> Y sí, es tan real como se ve... ¡Hijole llegó con más sabor que nunca!</div>
+                </div>
+
+                <div class="scene-row">
+                    <div class="scene-header">
+                        <span class="scene-name">Pieza 3 • Plano Interno de la Bolsa</span>
+                        <span class="scene-time">00:10 - 00:14</span>
+                    </div>
+                    <div class="scene-text"><b>Acción Visual:</b> Plano subjetivo desde el interior de la bolsa kraft al abrirla con las cajas de los productos. <br><b>Voz en Off (Salomé):</b> Con domicilios hasta la madrugada, el plan perfecto para un parche en casa.</div>
+                </div>
+
+                <div class="scene-row">
+                    <div class="scene-header">
+                        <span class="scene-name">Pieza 4 • Hamburguesa y Quesadilla</span>
+                        <span class="scene-time">00:14 - 00:27</span>
+                    </div>
+                    <div class="scene-text"><b>Acción Visual:</b> Tomas humanas idénticas a la de la papa y el guion ahumano: Salomé muerde la hamburguesa con pan extra suave y carne 100% casera; la amiga muestra la quesadilla humeante con queso gratinado y ese toque mexicano. <br><b>Voz en Off (Salomé):</b> Miren esta hamburguesa con pan extra suave y carne 100% casera. ¿Y qué tal esta quesadilla con ese queso gratinado y todo el toque mexicano de ¡Hijole!?</div>
+                </div>
+
+                <div class="scene-row">
+                    <div class="scene-header">
+                        <span class="scene-name">Pieza 5 • Cierre y Brindis</span>
+                        <span class="scene-time">00:27 - 00:33</span>
+                    </div>
+                    <div class="scene-text"><b>Acción Visual:</b> Ambas brindan con jugo y pola, sonriendo a la cámara. <br><b>Voz en Off (Salomé):</b> Con un jugo o una pola, ya tienes el día ganado. ¡Qué esperan, hagan ya su pedido!</div>
+                </div>
+            </div>
+
+            <div>
+                <div style="font-size: 0.8rem; font-weight: 700; color: var(--yellow); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px;">Guion limpio continuo (Voz en off: Salomé)</div>
+                <div class="clean-script">
+                    "Descubrimos la comida rápida más pro de Manizales. Y sí, es tan real como se ve... ¡Hijole llegó con más sabor que nunca! Con domicilios hasta la madrugada, el plan perfecto para un parche en casa. Miren esta hamburguesa con pan extra suave y carne 100% casera. ¿Y qué tal esta quesadilla con ese queso gratinado y todo el toque mexicano de ¡Hijole!? Con un jugo o una pola, ya tienes el día ganado. ¡Qué esperan, hagan ya su pedido!"
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <footer class="footer">
+        ¡Hijole! Chipre • Master Control v6.4
+    </footer>
+
+    <script>
+        const bubbleContainer = document.getElementById('bubbleContainer');
+        const bubbleCount = 24;
+
+        for (let i = 0; i < bubbleCount; i++) {
+            const bubble = document.createElement('div');
+            bubble.classList.add('bubble');
+            const size = Math.random() * 20 + 6;
+            const left = Math.random() * 100;
+            const duration = Math.random() * 7 + 4;
+            const delay = Math.random() * 5;
+
+            bubble.style.width = `${size}px`;
+            bubble.style.height = `${size}px`;
+            bubble.style.left = `${left}%`;
+            bubble.style.animationDuration = `${duration}s`;
+            bubble.style.animationDelay = `${delay}s`;
+
+            bubbleContainer.appendChild(bubble);
+        }
+
+        const scannerTrigger = document.getElementById('scannerTrigger');
+        const fingerprintBtn = document.getElementById('fingerprintBtn');
+        const scannerText = document.getElementById('scannerText');
+        const preloaderTitle = document.getElementById('preloaderTitle');
+        const unlockEffect = document.getElementById('unlockEffect');
+        const preloader = document.getElementById('preloader');
+        const topScanProgressBar = document.getElementById('topScanProgressBar');
+
+        let isUnlocked = false;
+        let progressInterval;
+        let startTime;
+        const requiredHoldTime = 2000;
+
+        function startBiometricScan(e) {
+            if (isUnlocked) return;
+            e.preventDefault();
+            fingerprintBtn.classList.add('scanning');
+            scannerText.innerHTML = "Mantén presionado... <span>Sostén sin soltar</span>";
+            startTime = Date.now();
+            clearInterval(progressInterval);
+
+            progressInterval = setInterval(() => {
+                let elapsed = Date.now() - startTime;
+                let progress = (elapsed / requiredHoldTime) * 100;
+                if (progress >= 100) {
+                    progress = 100;
+                    clearInterval(progressInterval);
+                    completeUnlock();
+                }
+                topScanProgressBar.style.width = progress + '%';
+            }, 30);
+        }
+
+        function cancelBiometricScan(e) {
+            if (isUnlocked) return;
+            if (e) e.preventDefault();
+            clearInterval(progressInterval);
+            let elapsed = Date.now() - startTime;
+            if (elapsed < requiredHoldTime) {
+                topScanProgressBar.style.width = '0%';
+                fingerprintBtn.classList.remove('scanning');
+                scannerText.innerHTML = "Mantén presionado para <span>activar el estudio</span>";
+            }
+        }
+
+        function completeUnlock() {
+            isUnlocked = true;
+            topScanProgressBar.style.width = '100%';
+            fingerprintBtn.classList.remove('scanning');
+            preloaderTitle.innerText = "¡Acceso Autorizado!";
+            scannerText.innerHTML = "Entrando al panel <span>de grabación</span>";
+            unlockEffect.style.opacity = '1';
+            setTimeout(() => { preloader.classList.add('loaded'); }, 700);
+        }
+
+        scannerTrigger.addEventListener('mousedown', startBiometricScan);
+        scannerTrigger.addEventListener('mouseup', cancelBiometricScan);
+        scannerTrigger.addEventListener('mouseleave', cancelBiometricScan);
+        scannerTrigger.addEventListener('touchstart', startBiometricScan, { passive: false });
+        scannerTrigger.addEventListener('touchend', cancelBiometricScan, { passive: false });
+        scannerTrigger.addEventListener('touchcancel', cancelBiometricScan, { passive: false });
+
+        const scriptLines = [
+            { time: 5, text: "Descubrimos la comida rápida más pro de Manizales." },
+            { time: 5, text: "Y sí, es tan real como se ve... ¡Hijole llegó con más sabor que nunca!" },
+            { time: 4, text: "Con domicilios hasta la madrugada, el plan perfecto para un parche en casa." },
+            { time: 13, text: "Miren esta hamburguesa con pan extra suave y carne 100% casera. ¿Y qué tal esta quesadilla con ese queso gratinado y todo el toque mexicano de ¡Hijole!?" },
+            { time: 6, text: "Con un jugo o una pola, ya tienes el día ganado. ¡Qué esperan, hagan ya su pedido!" }
+        ];
+
+        let currentLine = 0;
+        let timerInterval;
+        let timeLeft = 33;
+        let isRunning = false;
+
+        const prompterElement = document.getElementById('prompterText');
+        const timerElement = document.getElementById('masterTimer');
+
+        function updatePrompter() {
+            if (currentLine < scriptLines.length) {
+                prompterElement.innerHTML = `<div class="live-tag">EN VIVO</div>${scriptLines[currentLine].text}`;
+            }
+        }
+
+        function startTeleprompter() {
+            if (isRunning) return;
+            isRunning = true;
+            if(timeLeft === 33) {
+                currentLine = 0;
+                updatePrompter();
+            }
+
+            timerInterval = setInterval(() => {
+                if (timeLeft > 0) {
+                    timeLeft--;
+                    let seconds = timeLeft < 10 ? '0' + timeLeft : timeLeft;
+                    timerElement.innerText = `00:${seconds}`;
+                    
+                    if (timeLeft === 28) { currentLine = 1; updatePrompter(); }
+                    if (timeLeft === 23) { currentLine = 2; updatePrompter(); }
+                    if (timeLeft === 19) { currentLine = 3; updatePrompter(); }
+                    if (timeLeft === 6)  { currentLine = 4; updatePrompter(); }
+                } else {
+                    clearInterval(timerInterval);
+                    isRunning = false;
+                    prompterElement.innerHTML = `<div class="live-tag">LISTO</div>¡Toma Perfecta Finalizada! 🚀`;
+                }
+            }, 1000);
+        }
+
+        function pauseTeleprompter() {
+            clearInterval(timerInterval);
+            isRunning = false;
+        }
+
+        function resetTeleprompter() {
+            clearInterval(timerInterval);
+            isRunning = false;
+            timeLeft = 33;
+            currentLine = 0;
+            timerElement.innerText = "00:33";
+            prompterElement.innerHTML = `<div class="live-tag">EN VIVO</div>Pulsa Iniciar para leer el guion fluido con claridad.`;
+        }
+    </script>
+</body>
+</html>
